@@ -3,6 +3,10 @@ package com.example.datasource.multitenant;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Thread-safe cache for tenant configurations with 2-hour expiration.
+ * Supports lazy loading of new tenants from file/classpath.
+ */
 public class TenantConfigCache {
     private static final long CACHE_EXPIRY_MS = 2 * 60 * 60 * 1000; // 2 hours
     
@@ -12,6 +16,12 @@ public class TenantConfigCache {
     private long lastLoadTime = 0;
     private final Object loadLock = new Object();
 
+    /**
+     * Create cache for given configuration path.
+     * 
+     * @param configPath path to YAML file or classpath resource
+     * @param isClasspath true if loading from classpath, false for filesystem
+     */
     public TenantConfigCache(String configPath, boolean isClasspath) {
         this.configPath = configPath;
         this.isClasspath = isClasspath;
@@ -20,6 +30,10 @@ public class TenantConfigCache {
     /**
      * Get tenant config. Checks cache first, reloads if expired, 
      * then loads missing tenant from file and caches it.
+     * 
+     * @param tenantId the tenant identifier
+     * @return TenantConfig if found, null otherwise
+     * @throws Exception if loading from file fails
      */
     public TenantConfig getConfig(String tenantId) throws Exception {
         // Check if cache is expired, reload all if needed
@@ -33,7 +47,7 @@ public class TenantConfigCache {
         }
         
         // Not in cache, try to load this specific tenant from file
-        TenantConfig cfg = loadSingleTenantFromFile(tenantId);
+        var cfg = loadSingleTenantFromFile(tenantId);
         if (cfg != null) {
             cache.put(tenantId, cfg);
         }
@@ -42,10 +56,12 @@ public class TenantConfigCache {
 
     /**
      * Preload all tenants from config file into cache.
+     * 
+     * @throws Exception if loading fails
      */
     public void preloadAll() throws Exception {
         synchronized (loadLock) {
-            Map<String, TenantConfig> all = isClasspath 
+            var all = isClasspath 
                 ? TenantConfigLoader.loadFromClasspath(configPath)
                 : TenantConfigLoader.loadFromFile(configPath);
             cache.clear();
@@ -56,6 +72,8 @@ public class TenantConfigCache {
 
     /**
      * Reload all tenants from config file (called on cache expiry).
+     * 
+     * @throws Exception if loading fails
      */
     private void reloadFromFile() throws Exception {
         synchronized (loadLock) {
@@ -69,16 +87,22 @@ public class TenantConfigCache {
 
     /**
      * Load a single tenant from file.
+     * 
+     * @param tenantId the tenant identifier
+     * @return TenantConfig if found, null otherwise
+     * @throws Exception if loading fails
      */
     private TenantConfig loadSingleTenantFromFile(String tenantId) throws Exception {
-        Map<String, TenantConfig> all = isClasspath
+        var all = isClasspath
             ? TenantConfigLoader.loadFromClasspath(configPath)
             : TenantConfigLoader.loadFromFile(configPath);
         return all.get(tenantId);
     }
 
     /**
-     * Check if cache has expired.
+     * Check if cache has expired based on 2-hour timeout.
+     * 
+     * @return true if cache is expired
      */
     private boolean isCacheExpired() {
         return System.currentTimeMillis() - lastLoadTime > CACHE_EXPIRY_MS;
@@ -95,7 +119,9 @@ public class TenantConfigCache {
     }
 
     /**
-     * Get cache size (for testing/monitoring).
+     * Get current cache size (for testing/monitoring).
+     * 
+     * @return number of cached tenant configurations
      */
     public int getCacheSize() {
         return cache.size();
@@ -103,6 +129,8 @@ public class TenantConfigCache {
 
     /**
      * Get cache expiry time in milliseconds.
+     * 
+     * @return cache expiry time (2 hours)
      */
     public long getCacheExpiryMs() {
         return CACHE_EXPIRY_MS;

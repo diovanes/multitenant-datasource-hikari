@@ -8,13 +8,19 @@ import java.sql.SQLException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Manages HikariCP connection pools for multiple tenants.
+ * Provides thread-safe access to connections with automatic pool management.
+ */
 public class DataSourceManager {
     private final Map<String, HikariDataSource> pools = new ConcurrentHashMap<>();
     private final TenantConfigCache cache;
 
     /**
      * Constructor using config from classpath resource.
+     * 
      * @param configResourcePath path to tenants.yml in classpath (e.g., "tenants.yml")
+     * @throws Exception if configuration cannot be loaded
      */
     public DataSourceManager(String configResourcePath) throws Exception {
         this.cache = new TenantConfigCache(configResourcePath, true);
@@ -22,9 +28,11 @@ public class DataSourceManager {
     }
 
     /**
-     * Constructor using config from file system.
-     * @param configFilePath absolute path to tenants.yml file
+     * Constructor using config from file system or classpath.
+     * 
+     * @param configFilePath absolute path to tenants.yml file or resource path
      * @param isClasspath if false, loads from file system; if true, loads from classpath
+     * @throws Exception if configuration cannot be loaded
      */
     public DataSourceManager(String configFilePath, boolean isClasspath) throws Exception {
         this.cache = new TenantConfigCache(configFilePath, isClasspath);
@@ -33,6 +41,7 @@ public class DataSourceManager {
 
     /**
      * Constructor using pre-loaded tenant configs (for testing).
+     * 
      * @param tenantConfigs map of tenantId to TenantConfig
      */
     public DataSourceManager(Map<String, TenantConfig> tenantConfigs) {
@@ -45,16 +54,20 @@ public class DataSourceManager {
      * Get a connection for the given tenant ID.
      * Checks cache first, reloads from file if expired,
      * creates HikariDataSource pool if needed.
+     * 
+     * @param tenantId the tenant identifier
+     * @return a database connection for the tenant
+     * @throws SQLException if tenant not found or connection cannot be obtained
      */
     public Connection getConnection(String tenantId) throws SQLException {
         try {
-            TenantConfig cfg = cache.getConfig(tenantId);
+            var cfg = cache.getConfig(tenantId);
             if (cfg == null) {
                 throw new SQLException("No configuration found for tenant: " + tenantId);
             }
 
             // Try existing pool first
-            HikariDataSource ds = pools.get(tenantId);
+            var ds = pools.get(tenantId);
             if (ds != null) {
                 try {
                     return ds.getConnection();
@@ -66,13 +79,13 @@ public class DataSourceManager {
             }
 
             // Create a new pool and attempt to register it atomically
-            HikariDataSource newDs = createDataSourceFor(cfg);
+            var newDs = createDataSourceFor(cfg);
             if (newDs == null) {
                 throw new SQLException("Failed to create datasource for tenant: " + tenantId);
             }
 
-            HikariDataSource existing = pools.putIfAbsent(tenantId, newDs);
-            HikariDataSource toUse = existing != null ? existing : newDs;
+            var existing = pools.putIfAbsent(tenantId, newDs);
+            var toUse = existing != null ? existing : newDs;
 
             try {
                 return toUse.getConnection();
@@ -92,25 +105,35 @@ public class DataSourceManager {
         }
     }
 
+    /**
+     * Create a new HikariDataSource pool for the given tenant configuration.
+     * 
+     * @param cfg the tenant configuration
+     * @return a new HikariDataSource
+     */
     private HikariDataSource createDataSourceFor(TenantConfig cfg) {
-
-        HikariConfig hc = new HikariConfig();
-        String jdbcUrl = String.format("jdbc:postgresql://%s:%d/%s", cfg.getHost(), cfg.getPort(), cfg.getDatabase());
+        var hc = new HikariConfig();
+        var jdbcUrl = String.format("jdbc:postgresql://%s:%d/%s", 
+            cfg.host(), cfg.port(), cfg.database());
         hc.setJdbcUrl(jdbcUrl);
-        hc.setUsername(cfg.getUser());
-        hc.setPassword(cfg.getPassword());
-        hc.setMaximumPoolSize(cfg.getPoolSize());
-        hc.setConnectionTimeout(cfg.getConnectionTimeoutMs());
+        hc.setUsername(cfg.user());
+        hc.setPassword(cfg.password());
+        hc.setMaximumPoolSize(cfg.poolSize());
+        hc.setConnectionTimeout(cfg.connectionTimeoutMs());
+        
         // set schema on connection init
-        if (cfg.getSchema() != null && !cfg.getSchema().isEmpty()) {
-            hc.setConnectionInitSql("SET search_path TO " + cfg.getSchema());
+        if (cfg.schema() != null && !cfg.schema().isBlank()) {
+            hc.setConnectionInitSql("SET search_path TO " + cfg.schema());
         }
 
         return new HikariDataSource(hc);
     }
 
+    /**
+     * Close all connection pools and clear cache.
+     */
     public void closeAll() {
-        for (HikariDataSource ds : pools.values()) {
+        for (var ds : pools.values()) {
             try { ds.close(); } catch (Exception ignore) {}
         }
         pools.clear();
@@ -121,6 +144,8 @@ public class DataSourceManager {
 
     /**
      * Get the cache instance (for testing/monitoring).
+     * 
+     * @return the TenantConfigCache instance
      */
     public TenantConfigCache getCache() {
         return cache;

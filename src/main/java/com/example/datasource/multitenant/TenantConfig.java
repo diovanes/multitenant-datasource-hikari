@@ -1,36 +1,48 @@
 package com.example.datasource.multitenant;
 
-public class TenantConfig {
-    private String host;
-    private int port = 5432;
-    private String user;
-    private String password;
-    private String database;
-    private String schema = "public";
-    private int poolSize = 10;
-    private long connectionTimeoutMs = 30000L;
+/**
+ * Configuration for a single tenant database connection (Java 21 record).
+ * Immutable POJO with all parameters needed to connect to a Postgres database.
+ */
+public record TenantConfig(
+    String host,
+    int port,
+    String user,
+    String password,
+    String database,
+    String schema,
+    int poolSize,
+    long connectionTimeoutMs
+) {
+    // Compact constructor for validation
+    public TenantConfig {
+        if (host == null || host.isBlank()) {
+            throw new IllegalArgumentException("host cannot be null or empty");
+        }
+        if (user == null || user.isBlank()) {
+            throw new IllegalArgumentException("user cannot be null or empty");
+        }
+        if (password == null || password.isBlank()) {
+            throw new IllegalArgumentException("password cannot be null or empty");
+        }
+        if (database == null || database.isBlank()) {
+            throw new IllegalArgumentException("database cannot be null or empty");
+        }
+        if (port <= 0 || port > 65535) {
+            throw new IllegalArgumentException("port must be between 1 and 65535");
+        }
+        if (poolSize <= 0) {
+            throw new IllegalArgumentException("poolSize must be positive");
+        }
+        if (connectionTimeoutMs <= 0) {
+            throw new IllegalArgumentException("connectionTimeoutMs must be positive");
+        }
+    }
 
-    public String getHost() { return host; }
-    public void setHost(String host) { this.host = host; }
-
-    public int getPort() { return port; }
-    public void setPort(int port) { this.port = port; }
-
-    public String getUser() { return user; }
-    public void setUser(String user) { this.user = user; }
-
-    public String getPassword() { return password; }
-    public void setPassword(String password) { this.password = password; }
-
-    public String getDatabase() { return database; }
-    public void setDatabase(String database) { this.database = database; }
-
-    public String getSchema() { return schema; }
-    public void setSchema(String schema) { this.schema = schema; }
-
-    public int getPoolSize() { return poolSize; }
-    public void setPoolSize(int poolSize) { this.poolSize = poolSize; }
-
-    public long getConnectionTimeoutMs() { return connectionTimeoutMs; }
-    public void setConnectionTimeoutMs(long connectionTimeoutMs) { this.connectionTimeoutMs = connectionTimeoutMs; }
+    /**
+     * Builder-like factory method for creating TenantConfig with defaults.
+     */
+    public static TenantConfig builder(String host, String user, String password, String database) {
+        return new TenantConfig(host, 5432, user, password, database, "public", 10, 30000L);
+    }
 }

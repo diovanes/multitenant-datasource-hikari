@@ -4,11 +4,25 @@ Biblioteca Java para controlar pools de conexão por tenant usando HikariCP (Pos
 
 ## Features
 
+- **Java 21+**: Moderno, com records, type inference (var), pattern matching
 - **Cache com expiração automática (2 horas)**: Todos os tenants são carregados em memória e revalidados a cada 2 horas.
 - **Carregamento lazy de novos tenants**: Se um tenantId não estiver no cache, é carregado dinamicamente do arquivo.
 - **API simples**: Obtenha `Connection` via `getConnection(tenantId)`.
 - **Suporte a classpath e filesystem**: Carregue configuração de arquivo ou recurso classpath.
 - **Pool de conexões por tenant**: Cada tenant possui seu próprio `HikariDataSource`.
+- **Repool existente antes de criar novo**: Tenta reutilizar pool existente antes de criar novo datasource.
+
+## Requisitos
+
+- Java 21 ou superior
+- Maven 3.9.0+
+
+## Dependências
+
+- **HikariCP** 5.1.0
+- **PostgreSQL Driver** 42.7.2
+- **SnakeYAML** 2.2
+- **JUnit** 4.13.2 (testes)
 
 ## Dependência Maven
 

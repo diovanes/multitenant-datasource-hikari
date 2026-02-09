@@ -3,8 +3,6 @@ package com.example.datasource.multitenant;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.Map;
-
 import static org.junit.Assert.*;
 
 public class TenantConfigCacheTest {
@@ -24,15 +22,15 @@ public class TenantConfigCacheTest {
     @Test
     public void testGetConfigFromCache() throws Exception {
         cache.preloadAll();
-        TenantConfig cfg = cache.getConfig("tenant1");
+        var cfg = cache.getConfig("tenant1");
         assertNotNull(cfg);
-        assertEquals("localhost", cfg.getHost());
+        assertEquals("localhost", cfg.host());
     }
 
     @Test
     public void testGetNonExistentTenant() throws Exception {
         cache.preloadAll();
-        TenantConfig cfg = cache.getConfig("nonexistent");
+        var cfg = cache.getConfig("nonexistent");
         assertNull(cfg);
     }
 

@@ -7,49 +7,100 @@ import java.io.FileInputStream;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Loads tenant configurations from YAML files (classpath or filesystem).
+ * Supports YAML format with multi-tenant definitions.
+ */
 public class TenantConfigLoader {
+
+    /**
+     * Load tenant configurations from classpath resource.
+     * 
+     * @param resourcePath path to YAML resource (e.g., "tenants.yml")
+     * @return map of tenantId to TenantConfig
+     * @throws IllegalArgumentException if resource not found
+     */
     public static Map<String, TenantConfig> loadFromClasspath(String resourcePath) throws Exception {
-        InputStream is = TenantConfigLoader.class.getClassLoader().getResourceAsStream(resourcePath);
+        var is = TenantConfigLoader.class.getClassLoader().getResourceAsStream(resourcePath);
         if (is == null) {
             throw new IllegalArgumentException("Resource not found on classpath: " + resourcePath);
         }
         return loadFromInputStream(is);
     }
 
+    /**
+     * Load tenant configurations from filesystem path.
+     * 
+     * @param filePath absolute path to YAML file
+     * @return map of tenantId to TenantConfig
+     * @throws java.io.FileNotFoundException if file not found
+     */
     public static Map<String, TenantConfig> loadFromFile(String filePath) throws Exception {
-        try (InputStream is = new FileInputStream(filePath)) {
+        try (var is = new FileInputStream(filePath)) {
             return loadFromInputStream(is);
         }
     }
 
+    /**
+     * Parse YAML input stream into tenant configurations.
+     * 
+     * @param is input stream containing YAML
+     * @return map of tenantId to TenantConfig
+     */
     @SuppressWarnings("unchecked")
     private static Map<String, TenantConfig> loadFromInputStream(InputStream is) {
-        Yaml yaml = new Yaml();
-        Object obj = yaml.load(is);
-        Map<String, TenantConfig> result = new HashMap<>();
-        if (!(obj instanceof Map)) return result;
-        Map<String, Object> root = (Map<String, Object>) obj;
+        var yaml = new Yaml();
+        var obj = yaml.load(is);
+        var result = new HashMap<String, TenantConfig>();
+        
+        if (!(obj instanceof Map<?, ?> root)) return result;
 
-        Object tenantsObj = root.get("tenants");
-        if (!(tenantsObj instanceof Map)) return result;
+        var tenantsObj = root.get("tenants");
+        if (!(tenantsObj instanceof Map<?, ?> tenants)) return result;
 
-        Map<String, Object> tenants = (Map<String, Object>) tenantsObj;
-        for (Map.Entry<String, Object> e : tenants.entrySet()) {
-            String tenantId = e.getKey();
-            Object v = e.getValue();
-            if (!(v instanceof Map)) continue;
-            Map<String, Object> map = (Map<String, Object>) v;
-            TenantConfig cfg = new TenantConfig();
-            if (map.containsKey("host")) cfg.setHost(String.valueOf(map.get("host")));
-            if (map.containsKey("port")) cfg.setPort(Integer.parseInt(String.valueOf(map.get("port"))));
-            if (map.containsKey("user")) cfg.setUser(String.valueOf(map.get("user")));
-            if (map.containsKey("password")) cfg.setPassword(String.valueOf(map.get("password")));
-            if (map.containsKey("database")) cfg.setDatabase(String.valueOf(map.get("database")));
-            if (map.containsKey("schema")) cfg.setSchema(String.valueOf(map.get("schema")));
-            if (map.containsKey("poolSize")) cfg.setPoolSize(Integer.parseInt(String.valueOf(map.get("poolSize"))));
-            if (map.containsKey("connectionTimeoutMs")) cfg.setConnectionTimeoutMs(Long.parseLong(String.valueOf(map.get("connectionTimeoutMs"))));
+        for (var entry : tenants.entrySet()) {
+            var tenantId = (String) entry.getKey();
+            if (!(entry.getValue() instanceof Map<?, ?> map)) continue;
+            
+            var cfg = parseTenantConfig(map);
             result.put(tenantId, cfg);
         }
         return result;
+    }
+
+    /**
+     * Parse a single tenant configuration from map.
+     */
+    private static TenantConfig parseTenantConfig(Map<?, ?> map) {
+        String host = getString(map, "host");
+        int port = getInt(map, "port", 5432);
+        String user = getString(map, "user");
+        String password = getString(map, "password");
+        String database = getString(map, "database");
+        String schema = getString(map, "schema", "public");
+        int poolSize = getInt(map, "poolSize", 10);
+        long connectionTimeoutMs = getLong(map, "connectionTimeoutMs", 30000L);
+
+        return new TenantConfig(host, port, user, password, database, schema, poolSize, connectionTimeoutMs);
+    }
+
+    private static String getString(Map<?, ?> map, String key) {
+        var value = map.get(key);
+        return value != null ? String.valueOf(value) : null;
+    }
+
+    private static String getString(Map<?, ?> map, String key, String defaultValue) {
+        var value = getString(map, key);
+        return value != null ? value : defaultValue;
+    }
+
+    private static int getInt(Map<?, ?> map, String key, int defaultValue) {
+        var value = map.get(key);
+        return value != null ? Integer.parseInt(String.valueOf(value)) : defaultValue;
+    }
+
+    private static long getLong(Map<?, ?> map, String key, long defaultValue) {
+        var value = map.get(key);
+        return value != null ? Long.parseLong(String.valueOf(value)) : defaultValue;
     }
 }
