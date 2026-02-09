@@ -1,0 +1,19 @@
+tenants:
+  tenant1:
+    host: localhost
+    port: 5432
+    user: myuser
+    password: mypass
+    database: mydb
+    schema: public
+    poolSize: 10
+    connectionTimeoutMs: 30000
+
+  tenant2:
+    host: db2.example.com
+    port: 5432
+    user: user2
+    password: pass2
+    database: tenant2db
+    schema: public
+    poolSize: 5
