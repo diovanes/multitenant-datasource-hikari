@@ -1,4 +1,4 @@
-package com.example.datasource.multitenant;
+package com.diovanes.datasource.multitenant;
 
 import org.yaml.snakeyaml.Yaml;
 

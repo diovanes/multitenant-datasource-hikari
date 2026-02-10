@@ -1,4 +1,4 @@
-package com.example.datasource.multitenant;
+package com.diovanes.datasource.multitenant;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;

@@ -1,4 +1,4 @@
-package com.example.datasource.multitenant;
+package com.diovanes.datasource.multitenant;
 
 /**
  * Configuration for a single tenant database connection (Java 21 record).
